@@ -10,7 +10,7 @@ using namespace std;
 class Process{
     public:
     string etiqueta;
-    int time, Aunqueda, arriTime, waitTime = 0, responseTimes = -1, compleTime = -1;
+    int time, Aunqueda, arriTime, waitTime = 0, responseTimes = -1, compleTime = 0;
     int queueCola, prioridad; // con esto se asignan lo de las colas y sus prioridadess
 
     Process(string nombre, int bt, int at, int cola, int pri) {
