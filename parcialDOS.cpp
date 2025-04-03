@@ -10,10 +10,17 @@ using namespace std;
 class Process{
     public:
     string etiqueta;
-    float time, Aunqueda, arriTime, waitTime = 0, responseTimes = -1, compleTime = -1;
+    int time, Aunqueda, arriTime, waitTime = 0, responseTimes = -1, compleTime = -1;
     int queueCola, prioridad; // con esto se asignan lo de las colas y sus prioridadess
 
-    Process(string nombre, float bt, float at, int cola, int pri) : etiqueta(nombre), time(bt), Aunqueda(bt), arriTime(at), queueCola(cola), prioridad(pri) {}
+    Process(string nombre, int bt, int at, int cola, int pri) {
+        etiqueta = nombre; 
+        time=bt; 
+        Aunqueda = bt; 
+        arriTime = at; 
+        queueCola = cola; 
+        prioridad=pri; 
+    }
 };
 
 class Cola{
@@ -21,18 +28,16 @@ class Cola{
     string etique;
     int quantumRR;
     deque<Process*> listProcess;
-    Cola(string plani, int quantum): etique(plani), quantumRR(quantum){} // constructor de la cola, recibe el tipo de planificador y un entero que sera el quantum en los rr
+    Cola(string plani, int quantum){ etique = plani; quantumRR =quantum;} // constructor de la cola, recibe el tipo de planificador y un entero que sera el quantum en los rr
     // la funcion agrega, añade un proceso a la cola y lo ordena segun el algoritmo o pues planificador que le corresponda
-    void agrega(Process* pro){
-        bool menor = false;
+
+    void agrega(Process* pro) {
         listProcess.push_back(pro);
-        sort(listProcess.begin(), listProcess.end(), [this](Process* uno, Process* dos){
-            if (etique=="RR"){
-                return uno->prioridad > dos ->prioridad;
-            }else if(etique=="FCFS"){
-                return uno->arriTime > dos ->arriTime;
-            }
-        } );
+        if (etique == "FCFS") {
+            sort(listProcess.begin(), listProcess.end(), [](Process* a, Process* b) {
+                return a->arriTime < b->arriTime;
+            });
+        }
     }
     Process* sig(){ 
         if (listProcess.empty()) { return nullptr; }
@@ -42,8 +47,9 @@ class Cola{
 
 
 class MLQplani {
+    private:
     deque<Cola> queueColas;
-    float tiempo = 0;
+    int tiempo = 0;
     deque<Process*> proFIN;
 
     //este verifica si todavia quedan procesos en alguna cola
@@ -63,57 +69,69 @@ class MLQplani {
     void agregarProceso(Process* proc) {
         if (proc->queueCola - 1 < queueColas.size()) {queueColas[proc->queueCola - 1].agrega(proc);}
     }
-
-    // hace como tal el trabajo de calcular todos los valores que se piden y se va a ejecutar mientras queden procesos
     void ejecutar() {
         while (quedanProcesos()) {
             Process* proc = nullptr;
             Cola* cola_actual = nullptr;
             bool procesoEncontrado = false;
-            for (auto& cola : queueColas) {
-                for (auto& p : cola.listProcess) {
-                    if (p->arriTime <= tiempo && !procesoEncontrado) { 
+            for (size_t i = 0; i < queueColas.size() && !procesoEncontrado; ++i) {
+                Cola& cola = queueColas[i];
+                for (size_t j = 0; j < cola.listProcess.size() && !procesoEncontrado; ++j) {
+                    Process* p = cola.listProcess[j];
+                    if (p->arriTime <= tiempo) {
                         proc = p;
                         cola_actual = &cola;
                         procesoEncontrado = true;
                     }
                 }
             }
-            if (proc->responseTimes == -1) {proc->responseTimes = tiempo - proc->arriTime;}
-            float ejec;
-            if (cola_actual->etique == "RR") {  ejec = min((float)cola_actual->quantumRR, proc->Aunqueda);
-            } else {
-                ejec = proc->Aunqueda;
-            }
-            tiempo += ejec;
-            proc->Aunqueda -= ejec;
-
-            // aca verifico que si Aunqueda es <=0, significa que el proceso ya se acabo, entonces lo eliminamos de la lista de procesos, 
-            // pero si no se ha terminado y es RR, pues se rota, osea se manda al final de la fila
-            if (proc->Aunqueda <= 0) {
-                proc->compleTime = tiempo;
-                proc->waitTime = proc->compleTime - proc->arriTime - proc->time;
-                proFIN.push_back(proc);
-                cola_actual->listProcess.erase(
-                    remove(cola_actual->listProcess.begin(), cola_actual->listProcess.end(), proc), cola_actual->listProcess.end()
-                );
-            } else if (cola_actual->etique == "RR") {
-                rotate(cola_actual->listProcess.begin(), cola_actual->listProcess.begin() + 1, cola_actual->listProcess.end());
+    
+            if (procesoEncontrado) {
+                int ejec;
+                if (cola_actual->etique == "RR") {
+                    ejec = min(cola_actual->quantumRR, proc->Aunqueda); // se busca el minimo entre el tiempo del RR, y el que le queda al proceso
+                } else {
+                    ejec = proc->Aunqueda;
+                }
+    
+                // Actualizar response time
+                if (proc->responseTimes == -1) {
+                    proc->responseTimes = tiempo - proc->arriTime;
+                }
+                tiempo += ejec;
+                proc->Aunqueda -= ejec;
+                // acá se mira si ya el proceso se acabo, si Si entonces lo elimina de la Cola, caso contrario hago lo de la rotacion o pues cambio de proceso
+                if (proc->Aunqueda <= 0) {
+                    proc->compleTime = tiempo;
+                    proc->waitTime = proc->compleTime - proc->arriTime - proc->time;
+                    proFIN.push_back(proc);
+                    cola_actual->listProcess.erase(
+                        remove(cola_actual->listProcess.begin(), cola_actual->listProcess.end(), proc), 
+                        cola_actual->listProcess.end()
+                    );
+                } 
+                else if (cola_actual->etique == "RR") {
+                    cola_actual->listProcess.push_back(proc);
+                    cola_actual->listProcess.pop_front();
+                }
+            } 
+            else {
+                tiempo += 1;// Es para por si no hay procesos listos, avanza tiempo
             }
         }
     }
 
+
     // pesta funcion es la que pasa la respuesta a un txt
     void Answer(const string& archivo) {
-        float wt1=0,rt1=0,ct1=0,tati=0;
-        float cnt =0;
-        float wt2=0,rt2=0,ct2=0,tat2=0;
+        double wt1=0,rt1=0,ct1=0,tati=0;
+        double cnt =0;
         ofstream f(archivo);
         if (!f) {
             cerr << " No se pudo abrir el archivo "<< endl;
             return;
         }
-        f << "#Archivo: mlq003.txt \n";
+        f << "#Archivo: mlq001.txt \n";
         f << "# etiqueta;BT;AT;Q;Pr;WT;CT;RT;TAT\n";
         for (size_t i = 0; i < proFIN.size(); i++) {
             Process* p = proFIN[i];
@@ -125,13 +143,7 @@ class MLQplani {
             tati += tat;
             cnt += 1;
         }
-
-        wt2  = wt1 / cnt;
         //cout <<"wt1 = " << 94 << "cnt = "<< 5  << "wt2 "<< 94/5 << endl ;
-        rt2 = rt1/cnt;
-        ct2 = ct1/cnt;
-        tat2 = tati/cnt;
-        cout << wt2 <<rt2 << ct2<<tat2 << cnt;
         // nose pq no se hace bien la division, incluso cuando imprimi cout << 94/5, me seguia dando un valor incorrecto
         f << "\n"<<"WT = "<<wt1/cnt<< ";" << "CT = "<<ct1/cnt<< ";"<< "RT = "<<rt1/cnt<< ";"<< "TAT = "<<tati/cnt<< ";";
     }
@@ -147,7 +159,7 @@ int main() {
 
     MLQplani mlq(planini); 
 
-    ifstream entrada("mlq003.txt");
+    ifstream entrada("mlq001.txt");
     if (!entrada) {
         cerr << "Error al abrir el archivo de entrada." << endl;
         return 1;
@@ -168,7 +180,7 @@ int main() {
 
     mlq.ejecutar();
 
-    mlq.Answer("mlq003SALIDA.txt"); 
+    mlq.Answer("mlq001SALIDA.txt"); 
 
     return 0;
 }
