@@ -1,3 +1,4 @@
+//Parcial 2 - sistemas operativos - Ana Gabriela Argüello
 
 #include <iostream>
 #include <fstream>
@@ -10,19 +11,18 @@ using namespace std;
 class Process{
     public:
     string etiqueta;
-    int time, Aunqueda, arriTime, waitTime = 0, responseTimes = -1, compleTime = 0;
+    int buTime, Aunqueda, arriTime, waitTime = 0, responseTimes = -1, compleTime = 0;
     int queueCola, prioridad; // con esto se asignan lo de las colas y sus prioridadess
 
     Process(string nombre, int bt, int at, int cola, int pri) {
         etiqueta = nombre; 
-        time=bt; 
+        buTime=bt; 
         Aunqueda = bt; 
         arriTime = at; 
         queueCola = cola; 
         prioridad=pri; 
     }
 };
-
 class Cola{
     public:
     string etique;
@@ -93,7 +93,6 @@ class MLQplani {
                 } else {
                     ejec = proc->Aunqueda;
                 }
-    
                 // Actualizar response time
                 if (proc->responseTimes == -1) {
                     proc->responseTimes = tiempo - proc->arriTime;
@@ -102,15 +101,15 @@ class MLQplani {
                 proc->Aunqueda -= ejec;
                 // acá se mira si ya el proceso se acabo, si Si entonces lo elimina de la Cola, caso contrario hago lo de la rotacion o pues cambio de proceso
                 if (proc->Aunqueda <= 0) {
-                    proc->compleTime = tiempo;
-                    proc->waitTime = proc->compleTime - proc->arriTime - proc->time;
+                    proc->compleTime = tiempo; // aca pues si ya acabo entonces el tiempo de completado sera igual al tiempo que se lleva hasta ahora
+                    proc->waitTime = proc->compleTime - proc->arriTime - proc->buTime; // esto es basicamente el tat - el bt
                     proFIN.push_back(proc);
                     cola_actual->listProcess.erase(
                         remove(cola_actual->listProcess.begin(), cola_actual->listProcess.end(), proc), 
                         cola_actual->listProcess.end()
                     );
                 } 
-                else if (cola_actual->etique == "RR") {
+                else if (cola_actual->etique == "RR") { // este es como la rotacion, es decir quito el proceso del inicio y lo vuelo a colocar en la cola
                     cola_actual->listProcess.push_back(proc);
                     cola_actual->listProcess.pop_front();
                 }
@@ -136,7 +135,7 @@ class MLQplani {
         for (size_t i = 0; i < proFIN.size(); i++) {
             Process* p = proFIN[i];
             float tat = p->compleTime - p->arriTime;
-            f << p->etiqueta << ";" << p->time << ";" << p->arriTime << ";" << p->queueCola << ";" << p->prioridad << ";" << p->waitTime << ";" << p->compleTime << ";" << p->responseTimes << ";" << tat << "\n";
+            f << p->etiqueta << ";" << p->buTime << ";" << p->arriTime << ";" << p->queueCola << ";" << p->prioridad << ";" << p->waitTime << ";" << p->compleTime << ";" << p->responseTimes << ";" << tat << "\n";
             wt1 += p->waitTime ;
             rt1 += p->responseTimes;
             ct1 += p->compleTime;
